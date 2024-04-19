@@ -49,6 +49,9 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('GPTRus.explainSelected', (data) => {
             provider.explainSelected();
+        }),
+        vscode.commands.registerCommand('GPTRus.translateSelected', (data) => {
+            provider.commandSelected('Переведи выделенный текст на русский язык. Сохраняй исходное форматирование и разметку языка: \n\n ```\n {selection}  \n```');
         })
     );
 }
@@ -156,6 +159,26 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         );
     }
 
+    public commandSelected(prompt: string) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return;
+        }
+        const selection = editor.document.getText(editor.selection);
+        if (!selection) {
+            return;
+        }
+        this.clearChat();
+        chatState.push({
+            role: 'system',
+            text: 'Ты — опытный программист.',
+        });
+        vscode.commands.executeCommand('workbench.view.extension.GPTrus');
+        this.sendMessage(
+            prompt.replace("{selection}", selection)
+        );
+    }
+
     public sendMessage(message: string) {
         chatState.push({ role: 'user', text: message });
         vscode.commands.executeCommand('GPTRus.updateChat', chatState);
@@ -163,7 +186,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         const settings: settings | undefined = this.globalState.get('settings');
 
         const newPost = {
-            modelUri: `gpt://${settings?.catalogueId}/yandexgpt-lite`,
+            modelUri: `gpt://${settings?.catalogueId}/yandexgpt`,
             completionOptions: {
                 stream: false,
                 temperature: 0.6,
